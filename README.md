@@ -10,6 +10,20 @@ common pain points.
 - `src/hci_analysis.md`: plan for analysing everyone's reports
 - `src/utils/parse_reports.py`: parses filled-in worksheets into CSV tables
 
+If you'd like to participate, clone this repo, run bash `src/run_survey.sh` and send me your results folder, I’ll do some kind of meta-analysis
+
+# What it does
+
+Runs 3 agents to look through your interactions with claude, memories, history etc and summarizes what claude thinks about you, comments on your workstyle, etc. 
+
+# Keep in mind
+
+- “What claude thinks about you” is not a real thing, take it all with a grain of salt
+- Not super sandboxed → the participating agents might be able to access surprising things
+- LLMs behave differently when they know they are being tested
+- The way the survey is framed may bias how the comments are delivered
+- I’m using claude to interpret the results
+
 ## Taking the survey (participants)
 
 You need Claude Code installed and logged in (`claude --version` should work).
@@ -52,10 +66,3 @@ Taking part is voluntary.
    them. Replace anything you'd rather not share with `[redacted]` (Sections 4
    and 6 are the most personal).
 
-3. **Send the results to Cait.**
-
-   ```bash
-   tar czf claude-ux_$(whoami).tar.gz results/agent_*
-   ```
-
-   Send `claude-ux_<you>.tar.gz` to Cait Harrigan (<how to send: tbd>).
