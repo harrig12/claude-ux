@@ -14,7 +14,7 @@ If you'd like to participate, clone this repo, run bash `src/run_survey.sh` and 
 
 # What it does
 
-Runs 3 agents to look through your interactions with claude, memories, history etc and summarizes what claude thinks about you, comments on your workstyle, etc. 
+Runs an agent to look through your interactions with claude, memories, history etc and summarizes what claude thinks about you, comments on your workstyle, etc. 
 
 # Keep in mind
 
