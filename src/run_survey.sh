@@ -7,13 +7,13 @@
 # agent can read another's answers mid-run.
 #
 # Usage: src/run_survey.sh [N_AGENTS] [MODELS]
-#   N_AGENTS  number of agents (default 3, so plain `src/run_survey.sh` runs three)
+#   N_AGENTS  number of agents (default 1, so plain `src/run_survey.sh` runs one)
 #   MODELS    comma-separated model ids, cycled across agents (default claude-opus-5-5)
 #
 # Example: src/run_survey.sh 3 claude-opus-5-5,claude-sonnet-5-5
 set -euo pipefail
 
-N=${1:-3}
+N=${1:-1}
 IFS=, read -r -a MODELS <<< "${2:-claude-opus-5-5}"
 
 REPO=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
