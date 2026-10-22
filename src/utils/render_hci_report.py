@@ -201,10 +201,10 @@ def render(synthesis, n_agents, models):
 
 {_vibe_section(participants, synthesis.get("vibe_summary", ""))}
 
-<h2>Top 3 common interactions</h2>
+<h2>Top 3 common interaction patterns</h2>
 {_ranked(synthesis["common_interactions"])}
 
-<h2>Top 3 recovery strategies</h2>
+<h2>When things go wrong: top 3 recovery strategies</h2>
 {_ranked(synthesis["recovery_strategies"])}
 
 <h2>Participants</h2>
