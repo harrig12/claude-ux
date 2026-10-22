@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HCI survey synthesis",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["title", "dek", "date", "participants", "common_interactions", "recovery_strategies", "notes"],
+  "$defs": {
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "evidence", "agents", "of"],
+      "properties": {
+        "text": {"type": "string", "description": "One observation, one or two sentences."},
+        "evidence": {"type": "string", "description": "Report sections that support it, e.g. 'agent_1 4.1; agent_2 3.5'."},
+        "agents": {"type": "integer", "minimum": 0, "description": "How many of this participant's agents reported it."},
+        "of": {"type": "integer", "minimum": 1, "description": "How many agent reports this participant has."}
+      }
+    },
+    "ranked_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "description", "prevalence", "evidence"],
+      "properties": {
+        "title": {"type": "string", "description": "Short name, at most 6 words."},
+        "description": {"type": "string", "description": "One or two sentences."},
+        "prevalence": {"type": "string", "description": "Participants showing it, e.g. '4 of 6 users'."},
+        "evidence": {"type": "string", "description": "Participant IDs and report sections."}
+      }
+    }
+  },
+  "properties": {
+    "title": {"type": "string"},
+    "dek": {"type": "string", "description": "One-sentence summary of the main finding."},
+    "date": {"type": "string", "description": "YYYY-MM-DD"},
+    "participants": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "archetype", "user_strength", "user_improvement", "agent_strength", "agent_improvement", "unique"],
+        "properties": {
+          "id": {"type": "string", "description": "Participant ID exactly as in qc.csv."},
+          "archetype": {"type": "string", "description": "Two-to-five-word workstyle label."},
+          "user_strength": {"$ref": "#/$defs/observation"},
+          "user_improvement": {"$ref": "#/$defs/observation"},
+          "agent_strength": {"$ref": "#/$defs/observation"},
+          "agent_improvement": {"$ref": "#/$defs/observation"},
+          "unique": {"$ref": "#/$defs/observation"}
+        }
+      }
+    },
+    "common_interactions": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/ranked_item"}},
+    "recovery_strategies": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"$ref": "#/$defs/ranked_item"}},
+    "notes": {"type": "array", "items": {"type": "string"}, "description": "Caveats: sample size, evidence gaps, disagreements."}
+  }
+}
