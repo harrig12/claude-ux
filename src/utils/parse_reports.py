@@ -10,6 +10,8 @@ Outputs (one row per participant x agent x item/row):
     <table>.csv        rows of each worksheet table, named via TABLE_NAMES
     claims.csv         all "Assumptions vs. evidence" closing tables, with a section column
     qc.csv             per-report counts of unfilled placeholders and parsed rows
+    activity_hours.csv prompts per local hour of day, from each participant's
+                       ``<ID>/activity_hours.csv`` (src/utils/activity_hours.py), if present
 
 Lines of free text identical to the blank template's scaffolding (e.g. "1.", "-",
 "**Hard rules:**") are dropped, so ``text`` holds only what the agent wrote.
@@ -148,6 +150,13 @@ def find_reports(roots):
             yield path.parent.parent.name, agent, path
 
 
+def find_activity(roots):
+    """Yield (participant, path) for every <ID>/activity_hours.csv under roots."""
+    for root in roots:
+        for path in sorted(Path(root).glob("*/activity_hours.csv")):
+            yield path.parent.name, path
+
+
 def build_tables(roots, template=DEFAULT_TEMPLATE):
     """Parse all reports under roots into {table_name: [row dicts]}."""
     scaffold = _template_lines(template)
@@ -177,6 +186,11 @@ def build_tables(roots, template=DEFAULT_TEMPLATE):
         out["qc"].append({**key, "path": str(path), "placeholders_left": report["placeholders"],
                           "items_with_text": sum(bool(i["text"]) for i in report["items"].values()),
                           "table_rows": n_rows})
+
+    for participant, path in find_activity(roots):
+        with open(path) as f:
+            out["activity_hours"].extend({"participant": participant, **row}
+                                         for row in csv.DictReader(f))
     return out
 
 

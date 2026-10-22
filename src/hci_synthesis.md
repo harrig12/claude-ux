@@ -31,6 +31,20 @@ what works, recovery), 5.2 (surprises) and 6.1–6.2 (relationship).
   Claude Code use).
 - `archetype`: a two-to-five-word workstyle label.
 
+**Workstyle (per participant):**
+
+- `task_mix`: merge the participant's task-type tables (item 3.3,
+  `task_mix.csv`) into at most 7 shared categories, folding small or
+  one-agent categories into `Other`. Set `share` to the mean percentage across
+  their agents (an agent that has no row for a category counts as 0), rescaled
+  so the shares sum to 100. List largest first, with `Other` last.
+- `day_to_day`: two to four sentences summarising what a typical day and a
+  typical session look like (items 3.1 and 3.4).
+- `rituals`: up to 5 recurring workflows or rituals (item 3.5).
+- `handoff`: exactly two sentences (two full stops, at most 60 words)
+  summarising the handoff briefs (item 3.6): what a new agent most needs to
+  know to work with this user. Pick the top points; don't list every rule.
+
 Pick the observation with the strongest support across that participant's
 agents, not the most interesting one. Set `agents` to how many of their reports
 support it and `of` to their number of reports. Phrase improvements as

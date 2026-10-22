@@ -3,6 +3,7 @@
 Inputs:
     synthesis.json   written by the synthesis step (see src/hci_synthesis.md)
     qc.csv           from src/utils/parse_reports.py, for agent and model counts
+    activity_hours.csv  from src/utils/parse_reports.py, prompts per hour of day (optional)
 
 The page uses the Coastal Broadsheet theme (light mode): Bebas Neue headings,
 Merriweather body, Inter labels, on parchment with crimson accents.
@@ -10,12 +11,14 @@ Merriweather body, Inter labels, on parchment with crimson accents.
 Usage:
     python src/utils/render_hci_report.py results/hci_analysis/synthesis.json \
         --qc results/hci_analysis/parsed/qc.csv --meta results/hci_analysis/parsed/meta.csv \
+        --activity results/hci_analysis/parsed/activity_hours.csv \
         -o results/hci_analysis/hci_report.html
 """
 
 import argparse
 import csv
 import json
+import math
 from collections import Counter
 from html import escape
 from pathlib import Path
@@ -71,8 +74,27 @@ ol.ranked p { margin: 0 0 8px; }
 .vibe-legend i { display: inline-block; width: 10px; height: 10px; border: 1px solid var(--fg); margin-right: 6px; vertical-align: -1px; }
 .vibes { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 6px; }
 .vibes li { font: 13px/1.5 var(--label); }
+.workstyle { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px 24px; margin-top: 16px; }
+.workstyle p { margin: 4px 0 10px; }
+.workstyle ul.rituals { margin: 4px 0 10px; padding-left: 18px; }
+.workstyle ul.rituals li { margin-bottom: 6px; }
+.handoff { border-left: 3px solid var(--primary); padding-left: 12px; }
+figure.pie { margin: 0; }
+figure.pie svg { display: block; width: 160px; height: 160px; margin: 8px 0; }
+figure.pie path, figure.pie circle { stroke: var(--bg); stroke-width: 2; }
+figure.hours { margin: 20px 0 0; }
+figure.hours svg { display: block; width: 100%; max-width: 360px; height: auto; margin-top: 6px; }
+figure.hours rect.bar { fill: var(--muted); }
+figure.hours rect.hit { fill: transparent; }
+figure.hours g:hover rect.bar { fill: var(--accent); }
+figure.hours text { font: 10px var(--label); fill: var(--muted); }
+figure.hours line { stroke: var(--rule); }
+.pie-legend { list-style: none; padding: 0; margin: 0; font: 12px/1.5 var(--label); }
+.pie-legend li { display: flex; gap: 8px; align-items: baseline; }
+.pie-legend i { flex: none; width: 10px; height: 10px; border-radius: 2px; }
+.pie-legend .pct { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
 .chip { display: inline-block; font: 600 10px/1.6 var(--label); letter-spacing: .08em; text-transform: uppercase; padding: 0 6px; border: 1px solid var(--fg); margin-right: 8px; }
-@media (max-width: 640px) { .grid4 { grid-template-columns: 1fr; } .stat { border-right: 0; border-bottom: 1px solid var(--rule); } }
+@media (max-width: 640px) { .grid4, .workstyle { grid-template-columns: 1fr; } .stat { border-right: 0; border-bottom: 1px solid var(--rule); } }
 """
 
 FONTS = ("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600"
@@ -132,7 +154,94 @@ def _vibe_list(p):
     return f'<ul class="vibes">{items}</ul>' if items else ""
 
 
-def _participant(p):
+# Colourblind-safe categorical set (validated against --bg); "Other" stays grey.
+CATEGORICAL = ["#0072B2", "#E69F00", "#8F17CF", "#009E73", "#D55E00", "#56B4E9"]
+OTHER = "#999999"
+
+
+def task_colours(participants):
+    """Fixed category -> colour map, ordered by total share across participants,
+    so a category keeps its colour in every participant's pie."""
+    totals = Counter()
+    for p in participants:
+        for t in p.get("task_mix", []):
+            if t["category"].lower() != "other":
+                totals[t["category"]] += t["share"]
+    cats = [c for c, _ in totals.most_common()]
+    return {c: CATEGORICAL[i] if i < len(CATEGORICAL) else OTHER for i, c in enumerate(cats)}
+
+
+def _pie(task_mix, colours):
+    """Task-type mix as an SVG pie with a labelled legend."""
+    total = sum(t["share"] for t in task_mix)
+    if not total:
+        return ""
+    cx = cy = r = 80
+    slices, legend, angle = [], [], -math.pi / 2
+    for t in task_mix:
+        frac = t["share"] / total
+        colour = colours.get(t["category"], OTHER)
+        tip = f'<title>{escape(t["category"])}: {100 * frac:.0f}%</title>'
+        if frac >= 0.9999:
+            slices.append(f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{colour}">{tip}</circle>')
+        elif frac > 0:
+            end = angle + 2 * math.pi * frac
+            x0, y0 = cx + r * math.cos(angle), cy + r * math.sin(angle)
+            x1, y1 = cx + r * math.cos(end), cy + r * math.sin(end)
+            large = 1 if frac > 0.5 else 0
+            slices.append(f'<path d="M{cx},{cy} L{x0:.2f},{y0:.2f} A{r},{r} 0 {large} 1 {x1:.2f},{y1:.2f} Z" '
+                          f'fill="{colour}">{tip}</path>')
+            angle = end
+        legend.append(f'<li><i style="background:{colour}"></i><span>{escape(t["category"])}</span>'
+                      f'<span class="pct">{100 * frac:.0f}%</span></li>')
+    return (f'<figure class="pie"><div class="label">Task-type mix (mean of agent estimates)</div>'
+            f'<svg viewBox="0 0 160 160" role="img" aria-label="Task-type mix pie chart">{"".join(slices)}</svg>'
+            f'<ul class="pie-legend">{"".join(legend)}</ul></figure>')
+
+
+def _hours(counts):
+    """Prompts per local hour of day as an SVG bar histogram."""
+    if not counts or not any(counts):
+        return ""
+    w, h, left, bottom, top = 360, 140, 30, 20, 8
+    bw = (w - left) / 24
+    peak = max(counts)
+    plot_h = h - bottom - top
+    bars = []
+    for hour, n in enumerate(counts):
+        x = left + hour * bw
+        bh = plot_h * n / peak
+        bars.append(f'<g><title>{hour:02d}:00–{hour:02d}:59 · {n:,} prompts</title>'
+                    f'<rect class="hit" x="{x:.1f}" y="{top}" width="{bw:.1f}" height="{plot_h}"/>'
+                    f'<rect class="bar" x="{x + 1:.1f}" y="{top + plot_h - bh:.1f}" width="{bw - 2:.1f}" '
+                    f'height="{bh:.1f}" rx="1"/></g>')
+    ticks = "".join(f'<text x="{left + hour * bw:.1f}" y="{h - 6}" text-anchor="middle">{hour:02d}:00</text>'
+                    for hour in (0, 6, 12, 18))
+    axis = (f'<line x1="{left}" x2="{w}" y1="{top + plot_h}" y2="{top + plot_h}"/>'
+            f'<text x="{left - 4}" y="{top + 8}" text-anchor="end">{peak:,}</text>'
+            f'<text x="{left - 4}" y="{top + plot_h}" text-anchor="end">0</text>')
+    return (f'<figure class="hours"><div class="label">Prompts by hour of day (local time, '
+            f'{sum(counts):,} total)</div><svg viewBox="0 0 {w} {h}" role="img" '
+            f'aria-label="Histogram of prompts by hour of day">{axis}{"".join(bars)}{ticks}</svg></figure>')
+
+
+def _workstyle(p, colours, hours=None):
+    if not hours and not any(p.get(k) for k in ("day_to_day", "rituals", "handoff", "task_mix")):
+        return ""
+    text = ""
+    if d := p.get("day_to_day"):
+        text += (f'<div class="label">Day to day and typical session {_support(d)}</div>'
+                 f'<p>{escape(d["text"])}</p>{_evidence(d)}')
+    if rituals := p.get("rituals"):
+        items = "".join(f'<li>{escape(r["text"])} {_support(r)}{_evidence(r)}</li>' for r in rituals)
+        text += f'<div class="label">Recurring workflows and rituals</div><ul class="rituals">{items}</ul>'
+    if h := p.get("handoff"):
+        text += f'<div class="label">Handoff</div><p class="handoff">{escape(h)}</p>'
+    charts = _pie(p.get("task_mix", []), colours) + _hours(hours)
+    return f'<div class="workstyle"><div>{text}</div><div>{charts}</div></div>'
+
+
+def _participant(p, colours, hours=None):
     cells = "".join([
         _cell("User", "doing well", p["user_strength"]),
         _cell("User", "could improve", p["user_improvement"]),
@@ -144,7 +253,8 @@ def _participant(p):
     return (f'<section class="participant"><div class="participant-head"><h3>{escape(p["id"])}</h3>{archetype}</div>'
             f'<div class="grid4">{cells}</div>'
             f'<div class="unique"><div class="label"><span class="who" style="color:var(--accent)">Unique</span></div>'
-            f'<p>{escape(u["text"])}</p>{_evidence(u)}</div>{_vibe_list(p)}</section>')
+            f'<p>{escape(u["text"])}</p>{_evidence(u)}</div>{_workstyle(p, colours, hours)}'
+            f'{_vibe_list(p)}</section>')
 
 
 def count_runs(qc_path=None, meta_path=None):
@@ -162,8 +272,19 @@ def count_runs(qc_path=None, meta_path=None):
     return n_agents, models
 
 
-def render(synthesis, n_agents, models):
+def load_activity(path):
+    """{participant: [prompts for hours 0-23]} from parsed activity_hours.csv."""
+    activity = {}
+    if path and Path(path).exists():
+        with open(path) as f:
+            for row in csv.DictReader(f):
+                activity.setdefault(row["participant"], [0] * 24)[int(row["hour"])] = int(row["prompts"])
+    return activity
+
+
+def render(synthesis, n_agents, models, activity=None):
     participants = synthesis["participants"]
+    colours = task_colours(participants)
     n_users = len(participants)
     model_text = ", ".join(f"{m} ×{n}" for m, n in models.most_common()) or "n/a"
     stats = "".join([
@@ -208,7 +329,7 @@ def render(synthesis, n_agents, models):
 {_ranked(synthesis["recovery_strategies"])}
 
 <h2>Participants</h2>
-{"".join(_participant(p) for p in participants)}
+{"".join(_participant(p, colours, (activity or {}).get(p["id"])) for p in participants)}
 
 <footer class="notes">{notes}</footer>
 </main>
@@ -222,6 +343,7 @@ def main():
     parser.add_argument("synthesis", help="synthesis.json from the synthesis step")
     parser.add_argument("--qc", help="qc.csv from parse_reports.py (agent count)")
     parser.add_argument("--meta", help="meta.csv from parse_reports.py (model counts)")
+    parser.add_argument("--activity", help="activity_hours.csv from parse_reports.py (optional)")
     parser.add_argument("-o", "--out", required=True, help="output HTML path")
     args = parser.parse_args()
 
@@ -238,7 +360,7 @@ def main():
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(render(synthesis, n_agents, models))
+    out.write_text(render(synthesis, n_agents, models, load_activity(args.activity)))
     print(f"wrote {out}")
 
 

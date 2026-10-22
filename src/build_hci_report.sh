@@ -79,4 +79,5 @@ fi
 
 echo "[3/3] rendering"
 python3 "$REPO/src/utils/render_hci_report.py" "$SYNTH" \
-  --qc "$PARSED/qc.csv" --meta "$PARSED/meta.csv" -o "$OUT/hci_report.html"
+  --qc "$PARSED/qc.csv" --meta "$PARSED/meta.csv" --activity "$PARSED/activity_hours.csv" \
+  -o "$OUT/hci_report.html"

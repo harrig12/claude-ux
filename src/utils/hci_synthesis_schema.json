@@ -98,7 +98,11 @@
           "agent_strength",
           "agent_improvement",
           "unique",
-          "vibe"
+          "vibe",
+          "task_mix",
+          "day_to_day",
+          "rituals",
+          "handoff"
         ],
         "properties": {
           "id": {
@@ -123,6 +127,48 @@
           },
           "unique": {
             "$ref": "#/$defs/observation"
+          },
+          "task_mix": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 7,
+            "description": "Task-type mix (item 3.3) merged across this participant's agents into shared categories, largest first; shares sum to 100.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "category",
+                "share"
+              ],
+              "properties": {
+                "category": {
+                  "type": "string",
+                  "description": "Short task-type name, at most 4 words; use 'Other' for the remainder."
+                },
+                "share": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100,
+                  "description": "Mean percentage across the participant's agents."
+                }
+              }
+            }
+          },
+          "day_to_day": {
+            "$ref": "#/$defs/observation"
+          },
+          "rituals": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5,
+            "description": "Recurring workflows and rituals (item 3.5), best supported first.",
+            "items": {
+              "$ref": "#/$defs/observation"
+            }
+          },
+          "handoff": {
+            "type": "string",
+            "description": "Exactly two sentences summarising the handoff briefs (item 3.6)."
           },
           "vibe": {
             "type": "array",
