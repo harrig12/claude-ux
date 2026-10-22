@@ -62,6 +62,16 @@ ol.ranked p { margin: 0 0 8px; }
 .unique { background: var(--surface); border-left: 3px solid var(--accent); padding: 12px 16px; margin-top: 12px; }
 .notes { font: 13px/1.6 var(--label); color: var(--muted); border-top: 3px double var(--fg); margin-top: 56px; padding-top: 12px; }
 .notes p { margin: 0 0 6px; }
+.vibe-bar { display: flex; height: 28px; border: 1px solid var(--fg); margin: 8px 0 6px; }
+.vibe-bar span { display: flex; align-items: center; justify-content: center; font: 600 11px/1 var(--label); letter-spacing: .08em; text-transform: uppercase; }
+.vibe-positive { background: var(--primary); color: var(--fg); }
+.vibe-neutral { background: var(--surface); color: var(--fg); }
+.vibe-negative { background: var(--accent); color: var(--bg); }
+.vibe-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font: 12px/1.5 var(--label); color: var(--muted); }
+.vibe-legend i { display: inline-block; width: 10px; height: 10px; border: 1px solid var(--fg); margin-right: 6px; vertical-align: -1px; }
+.vibes { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 6px; }
+.vibes li { font: 13px/1.5 var(--label); }
+.chip { display: inline-block; font: 600 10px/1.6 var(--label); letter-spacing: .08em; text-transform: uppercase; padding: 0 6px; border: 1px solid var(--fg); margin-right: 8px; }
 @media (max-width: 640px) { .grid4 { grid-template-columns: 1fr; } .stat { border-right: 0; border-bottom: 1px solid var(--rule); } }
 """
 
@@ -97,6 +107,31 @@ def _ranked(items):
     return '<ol class="ranked">' + "".join(out) + "</ol>"
 
 
+VIBES = ("positive", "neutral", "negative")
+
+
+def _vibe_section(participants, summary):
+    """Overall sentiment distribution across every agent report."""
+    counts = Counter(v["label"] for p in participants for v in p.get("vibe", []))
+    total = sum(counts.values())
+    if not total:
+        return ""
+    bar = "".join(f'<span class="vibe-{k}" style="flex:{counts[k]}">{counts[k]}</span>'
+                  for k in VIBES if counts[k])
+    legend = "".join(f'<span><i class="vibe-{k}"></i>{k} {counts[k]}/{total} '
+                     f'({100 * counts[k] / total:.0f}%)</span>' for k in VIBES)
+    return (f'<h2>Vibe check</h2><p class="label">Sentiment of each agent report toward the user '
+            f'and the collaboration</p><div class="vibe-bar">{bar}</div>'
+            f'<div class="vibe-legend">{legend}</div><p>{escape(summary)}</p>')
+
+
+def _vibe_list(p):
+    items = "".join(f'<li><span class="chip vibe-{escape(v["label"])}">{escape(v["label"])}</span>'
+                    f'<b>{escape(v["report"])}</b> · {escape(v["rationale"])}</li>'
+                    for v in p.get("vibe", []))
+    return f'<ul class="vibes">{items}</ul>' if items else ""
+
+
 def _participant(p):
     cells = "".join([
         _cell("User", "doing well", p["user_strength"]),
@@ -109,7 +144,7 @@ def _participant(p):
     return (f'<section class="participant"><div class="participant-head"><h3>{escape(p["id"])}</h3>{archetype}</div>'
             f'<div class="grid4">{cells}</div>'
             f'<div class="unique"><div class="label"><span class="who" style="color:var(--accent)">Unique</span></div>'
-            f'<p>{escape(u["text"])}</p>{_evidence(u)}</div></section>')
+            f'<p>{escape(u["text"])}</p>{_evidence(u)}</div>{_vibe_list(p)}</section>')
 
 
 def count_runs(qc_path=None, meta_path=None):
@@ -163,6 +198,8 @@ def render(synthesis, n_agents, models):
   <p class="dek">{escape(synthesis.get("dek", ""))}</p>
 </header>
 <div class="stats">{stats}</div>
+
+{_vibe_section(participants, synthesis.get("vibe_summary", ""))}
 
 <h2>Top 3 common interactions</h2>
 {_ranked(synthesis["common_interactions"])}

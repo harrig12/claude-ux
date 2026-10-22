@@ -36,6 +36,20 @@ agents, not the most interesting one. Set `agents` to how many of their reports
 support it and `of` to their number of reports. Phrase improvements as
 concrete, actionable changes, not criticism.
 
+**Vibe check (per report):** for every agent report, set `vibe` to the overall
+sentiment of how the report portrays the user and the collaboration:
+
+- `positive`: the collaboration comes across as working well; problems are
+  framed as fixable details.
+- `neutral`: mostly descriptive, or strengths and problems roughly balance.
+- `negative`: the collaboration comes across as frustrating or strained;
+  problems dominate.
+
+Judge the tone of items 3.1, 4.3–4.5, 5.2 and 6.1–6.2, not the length of the
+pain-point list: every report is asked to list pain points. Give one sentence of
+rationale per report, and summarise the pattern across all reports in
+`vibe_summary`.
+
 **Across participants:**
 
 - `common_interactions`: the 3 interaction patterns shared by the most

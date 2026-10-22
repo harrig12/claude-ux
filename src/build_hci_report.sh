@@ -33,9 +33,18 @@ if (( ! RENDER_ONLY )); then
   python3 "$REPO/src/utils/parse_reports.py" "$PARTICIPANTS" -o "$PARSED"
 
   echo "[2/3] synthesising with $MODEL"
+  # Report folders may be symlinks (e.g. to results/agent_<n>), which the file
+  # tools don't follow when listing. Hand the agent each report's real path and
+  # allow its real folder.
+  REPORT_LIST=""
+  REPORT_DIRS=()
+  while IFS= read -r f; do
+    rel=${f#"$PARTICIPANTS"/}
+    real=$(realpath "$f")
+    REPORT_LIST+="- ${rel%/report.md}: $real"$'\n'
+    REPORT_DIRS+=("$(dirname "$real")")
+  done < <(find -L "$PARTICIPANTS" -name report.md | sort)
   WORK=$(mktemp -d)
-  ln -s "$PARSED" "$WORK/parsed"
-  ln -s "$PARTICIPANTS" "$WORK/participants"
   (
     cd "$WORK"
     claude -p \
@@ -44,13 +53,16 @@ if (( ! RENDER_ONLY )); then
       --strict-mcp-config \
       --output-format json \
       --json-schema "$(cat "$SCHEMA")" \
-      --add-dir "$PARSED" "$PARTICIPANTS" \
+      --add-dir "$PARSED" "$PARTICIPANTS" "${REPORT_DIRS[@]}" \
       --allowedTools "Read" "Glob" "Grep" \
       --disallowedTools "Bash" "Edit" "Write" "WebFetch" "WebSearch" "Agent" \
       -- "$(cat "$PROMPT")
 
-Today's date is $(date +%F). The inputs are in ./parsed and ./participants." \
-      > "$OUT/synthesis_run.json"
+Today's date is $(date +%F).
+Parsed tables: $PARSED/
+Reports (participant/agent: path):
+$REPORT_LIST" \
+      < /dev/null > "$OUT/synthesis_run.json"
   )
   rm -rf "$WORK" "$HOME/.claude/projects/$(sed 's/[^A-Za-z0-9]/-/g' <<< "$WORK")"
 
