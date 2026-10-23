@@ -1,20 +1,23 @@
-# Claude Code user-interaction survey: report
+# Claude user-interaction survey: report
 
 <!--
-Worksheet for answering src/survey/survey.md. Don't edit this template in place:
-copy it to results/survey/<YYYY-MM-DD>_report.md and fill in the copy.
+Worksheet for answering src/survey.md. Don't edit this template in place: fill
+in a copy (in a chat, reply with the filled-in worksheet as plain markdown).
 Replace every _<...>_ placeholder, keep the headings and numbering, and delete
-these HTML comments when you're done. Tag claims with a source
-([ctx] [settings] [memory] [history] [inferred]) and a confidence (high/med/low).
+these HTML comments when you're done. If a source isn't available in your
+environment, say so in the item instead of leaving it blank. Tag claims with a
+source ([ctx] [settings] [memory] [history] [inferred]) and a confidence
+(high/med/low).
 -->
 
 | Field | Value |
 |---|---|
 | Date | _<YYYY-MM-DD>_ |
 | Agent / model | _<model id>_ |
-| Working directory | _<path>_ |
+| Environment | _<Claude Code CLI / IDE extension / chat app with tools / plain chat; which sources were available>_ |
+| Working directory | _<path, or n/a in a chat>_ |
 | Projects covered | _<list>_ |
-| Sampling scheme for history/transcripts | _<e.g. 20 most recent sessions across 5 projects>_ |
+| Sampling scheme for history/transcripts | _<e.g. 20 most recent sessions across 5 projects, or none available>_ |
 
 ---
 

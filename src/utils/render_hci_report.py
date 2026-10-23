@@ -19,6 +19,7 @@ import argparse
 import csv
 import json
 import math
+import re
 from collections import Counter
 from html import escape
 from pathlib import Path
@@ -52,19 +53,36 @@ ol.ranked li { background: var(--surface); border-top: 3px solid var(--accent); 
 ol.ranked .rank { font: 400 40px/1 var(--head); color: var(--primary); -webkit-text-stroke: 1px var(--fg); }
 ol.ranked h3 { margin: 4px 0 6px; }
 ol.ranked p { margin: 0 0 8px; }
-.participant { border-top: 1px solid var(--fg); padding-top: 16px; margin-top: 32px; }
-.participant-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin-bottom: 12px; }
-.participant-head h3 { font-size: 30px; }
+.participant { border-top: 1px solid var(--fg); padding-top: 8px; margin-top: 16px; font-size: 13px; }
+.participant > summary { cursor: pointer; list-style-position: outside; margin-left: 16px; }
+.participant[open] > summary { margin-bottom: 8px; }
+.cohort { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 16px 32px; align-items: start; margin-top: 16px; }
+.hours-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font: 12px/1.5 var(--label); color: var(--muted); margin-top: 6px; }
+.hours-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.participant-head { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+.participant-head h3 { font-size: 22px; }
 .grid4 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
 .cell { background: var(--bg); padding: 14px 16px; }
 .cell .label { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
 .cell .label .who { color: var(--accent); }
 .cell p { margin: 0; }
-.evidence { font: 12px/1.5 var(--label); color: var(--muted); margin-top: 6px !important; }
-.support { font: 600 11px/1.4 var(--label); background: var(--primary); color: var(--fg); padding: 1px 6px; border-radius: 2px; white-space: nowrap; }
-.unique { background: var(--surface); border-left: 3px solid var(--accent); padding: 12px 16px; margin-top: 12px; }
-.notes { font: 13px/1.6 var(--label); color: var(--muted); border-top: 3px double var(--fg); margin-top: 56px; padding-top: 12px; }
-.notes p { margin: 0 0 6px; }
+.unique { background: var(--surface); border-left: 3px solid var(--accent); padding: 10px 14px; margin: 8px 0 4px; font-size: 14px; }
+.unique .label { color: var(--accent); }
+.cohort-grid { margin-top: 16px; }
+figure.models { margin: 0; }
+.stat-models { grid-column: span 2; }
+figure.models .models { margin-top: 6px; }
+.compiled { font: 11px/1.6 var(--label); color: var(--muted); border-top: 3px double var(--fg); margin-top: 56px; padding-top: 12px; }
+.prev { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.prev .track { flex: 1; height: 8px; background: var(--rule); border-radius: 4px; overflow: hidden; }
+.prev .fill { height: 100%; background: var(--accent); border-radius: 4px; }
+.prev .label { white-space: nowrap; }
+.models { display: grid; grid-template-columns: minmax(0, max-content) minmax(80px, 1fr) max-content; gap: 6px 12px;
+  align-items: center; max-width: 640px; font: 12px/1.5 var(--label); }
+.models .track { height: 12px; }
+.models .fill { height: 100%; background: var(--muted); border-radius: 0 4px 4px 0; }
+.models .track:hover .fill { background: var(--accent); }
+.models .n { color: var(--muted); font-variant-numeric: tabular-nums; }
 .vibe-bar { display: flex; height: 28px; border: 1px solid var(--fg); margin: 8px 0 6px; }
 .vibe-bar span { display: flex; align-items: center; justify-content: center; font: 600 11px/1 var(--label); letter-spacing: .08em; text-transform: uppercase; }
 .vibe-positive { background: var(--primary); color: var(--fg); }
@@ -74,7 +92,7 @@ ol.ranked p { margin: 0 0 8px; }
 .vibe-legend i { display: inline-block; width: 10px; height: 10px; border: 1px solid var(--fg); margin-right: 6px; vertical-align: -1px; }
 .vibes { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 6px; }
 .vibes li { font: 13px/1.5 var(--label); }
-.workstyle { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px 24px; margin-top: 16px; }
+.workstyle { margin-top: 16px; max-width: 760px; }
 .workstyle p { margin: 4px 0 10px; }
 .workstyle ul.rituals { margin: 4px 0 10px; padding-left: 18px; }
 .workstyle ul.rituals li { margin-bottom: 6px; }
@@ -82,11 +100,11 @@ ol.ranked p { margin: 0 0 8px; }
 figure.pie { margin: 0; }
 figure.pie svg { display: block; width: 160px; height: 160px; margin: 8px 0; }
 figure.pie path, figure.pie circle { stroke: var(--bg); stroke-width: 2; }
-figure.hours { margin: 20px 0 0; }
-figure.hours svg { display: block; width: 100%; max-width: 360px; height: auto; margin-top: 6px; }
-figure.hours rect.bar { fill: var(--muted); }
+figure.hours { margin: 0; }
+figure.hours svg { display: block; width: 100%; max-width: 560px; height: auto; margin-top: 6px; }
+figure.hours rect.bar { stroke: var(--bg); stroke-width: 1; }
 figure.hours rect.hit { fill: transparent; }
-figure.hours g:hover rect.bar { fill: var(--accent); }
+figure.hours rect.bar:hover { opacity: .75; }
 figure.hours text { font: 10px var(--label); fill: var(--muted); }
 figure.hours line { stroke: var(--rule); }
 .pie-legend { list-style: none; padding: 0; margin: 0; font: 12px/1.5 var(--label); }
@@ -94,39 +112,63 @@ figure.hours line { stroke: var(--rule); }
 .pie-legend i { flex: none; width: 10px; height: 10px; border-radius: 2px; }
 .pie-legend .pct { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
 .chip { display: inline-block; font: 600 10px/1.6 var(--label); letter-spacing: .08em; text-transform: uppercase; padding: 0 6px; border: 1px solid var(--fg); margin-right: 8px; }
-@media (max-width: 640px) { .grid4, .workstyle { grid-template-columns: 1fr; } .stat { border-right: 0; border-bottom: 1px solid var(--rule); } }
+@media (max-width: 640px) { .grid4, .cohort { grid-template-columns: 1fr; } .stat { border-right: 0; border-bottom: 1px solid var(--rule); } .stat-models { grid-column: auto; } }
 """
 
 FONTS = ("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600"
          "&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap")
 
 
-def _support(obs):
-    """Badge for how many of a participant's agents reported an observation."""
-    n, of = obs.get("agents"), obs.get("of")
-    if n is None:
-        return ""
-    return f'<span class="support">{n}/{of} agents</span>' if of else f'<span class="support">{n} agents</span>'
-
-
-def _evidence(obs):
-    ev = obs.get("evidence")
-    return f'<p class="evidence">{escape(ev)}</p>' if ev else ""
+def _text(obs):
+    """Observation text, whether given as a plain string or an observation object."""
+    return obs["text"] if isinstance(obs, dict) else obs
 
 
 def _cell(who, what, obs):
-    return (f'<div class="cell"><div class="label"><span><span class="who">{who}</span> · {what}</span>'
-            f'{_support(obs)}</div><p>{escape(obs["text"])}</p>{_evidence(obs)}</div>')
+    return (f'<div class="cell"><div class="label"><span><span class="who">{who}</span> · {what}</span></div>'
+            f'<p>{escape(_text(obs))}</p></div>')
+
+
+def _grid4(src):
+    """Doing well / could improve square for users and agents."""
+    return '<div class="grid4">' + "".join([
+        _cell("User", "doing well", src["user_strength"]),
+        _cell("User", "could improve", src["user_improvement"]),
+        _cell("Agents", "doing well", src["agent_strength"]),
+        _cell("Agents", "could improve", src["agent_improvement"]),
+    ]) + "</div>"
+
+
+def _prevalence(prev):
+    """'k of N users' as a filled bar; any other wording falls back to text."""
+    if not prev:
+        return ""
+    m = re.search(r"(\d+)\s*(?:of|/)\s*(\d+)", prev)
+    if not m or not int(m[2]):
+        return f'<p class="label">{escape(prev)}</p>'
+    k, n = int(m[1]), int(m[2])
+    return (f'<div class="prev" title="{escape(prev)}"><div class="track">'
+            f'<div class="fill" style="width:{100 * k / n:.0f}%"></div></div>'
+            f'<span class="label">{k}/{n} users</span></div>')
 
 
 def _ranked(items):
     out = []
     for i, item in enumerate(items, 1):
-        prev = item.get("prevalence")
-        prev_html = f'<p class="label">{escape(prev)}</p>' if prev else ""
         out.append(f'<li><div class="rank">{i:02d}</div><h3>{escape(item["title"])}</h3>'
-                   f'<p>{escape(item["description"])}</p>{prev_html}{_evidence(item)}</li>')
+                   f'<p>{escape(item["description"])}</p>{_prevalence(item.get("prevalence"))}</li>')
     return '<ol class="ranked">' + "".join(out) + "</ol>"
+
+
+def _models(models):
+    """Agent reports per model as horizontal bars."""
+    if not models:
+        return ""
+    peak = max(models.values())
+    rows = "".join(f'<span>{escape(m)}</span><div class="track" title="{escape(m)}: {n} report{"s" * (n != 1)}">'
+                   f'<div class="fill" style="width:{100 * n / peak:.0f}%"></div></div>'
+                   f'<span class="n">{n}</span>' for m, n in models.most_common())
+    return f'<figure class="models"><div class="label">Agent reports by model</div><div class="models">{rows}</div></figure>'
 
 
 VIBES = ("positive", "neutral", "negative")
@@ -159,16 +201,30 @@ CATEGORICAL = ["#0072B2", "#E69F00", "#8F17CF", "#009E73", "#D55E00", "#56B4E9"]
 OTHER = "#999999"
 
 
-def task_colours(participants):
-    """Fixed category -> colour map, ordered by total share across participants,
-    so a category keeps its colour in every participant's pie."""
-    totals = Counter()
-    for p in participants:
-        for t in p.get("task_mix", []):
-            if t["category"].lower() != "other":
+def _palette(keys):
+    """Fixed key -> colour map in the given order; keys past the palette and
+    'Other' share the grey."""
+    keys = [k for k in keys if k.lower() != "other"]
+    return {k: CATEGORICAL[i] if i < len(CATEGORICAL) else OTHER for i, k in enumerate(keys)}
+
+
+def cohort_mix(participants, categories=None):
+    """Mean task share per category across participants (missing = 0), in the
+    synthesis's shared category order, Other last, rescaled to sum to 100."""
+    if not categories:
+        totals = Counter()
+        for p in participants:
+            for t in p.get("task_mix", []):
                 totals[t["category"]] += t["share"]
-    cats = [c for c, _ in totals.most_common()]
-    return {c: CATEGORICAL[i] if i < len(CATEGORICAL) else OTHER for i, c in enumerate(cats)}
+        categories = [c for c, _ in totals.most_common()]
+    categories = sorted(categories, key=lambda c: c.lower() == "other")
+    mean = Counter()
+    for p in participants:
+        total = sum(t["share"] for t in p.get("task_mix", [])) or 1
+        for t in p.get("task_mix", []):
+            mean[t["category"]] += 100 * t["share"] / total / len(participants)
+    scale = 100 / (sum(mean[c] for c in categories) or 1)
+    return [{"category": c, "share": mean[c] * scale} for c in categories if mean[c] > 0]
 
 
 def _pie(task_mix, colours):
@@ -194,82 +250,101 @@ def _pie(task_mix, colours):
             angle = end
         legend.append(f'<li><i style="background:{colour}"></i><span>{escape(t["category"])}</span>'
                       f'<span class="pct">{100 * frac:.0f}%</span></li>')
-    return (f'<figure class="pie"><div class="label">Task-type mix (mean of agent estimates)</div>'
+    return (f'<figure class="pie"><div class="label">Task-type mix (mean across users)</div>'
             f'<svg viewBox="0 0 160 160" role="img" aria-label="Task-type mix pie chart">{"".join(slices)}</svg>'
             f'<ul class="pie-legend">{"".join(legend)}</ul></figure>')
 
 
-def _hours(counts):
-    """Prompts per local hour of day as an SVG bar histogram."""
-    if not counts or not any(counts):
+def _hours(activity, colours):
+    """Prompts per local hour of day, stacked by participant, as an SVG histogram."""
+    activity = {p: c for p, c in activity.items() if any(c)}
+    if not activity:
         return ""
-    w, h, left, bottom, top = 360, 140, 30, 20, 8
+    w, h, left, bottom, top = 560, 160, 34, 20, 8
     bw = (w - left) / 24
-    peak = max(counts)
+    totals = [sum(c[hour] for c in activity.values()) for hour in range(24)]
+    peak = max(totals)
     plot_h = h - bottom - top
     bars = []
-    for hour, n in enumerate(counts):
-        x = left + hour * bw
-        bh = plot_h * n / peak
-        bars.append(f'<g><title>{hour:02d}:00–{hour:02d}:59 · {n:,} prompts</title>'
-                    f'<rect class="hit" x="{x:.1f}" y="{top}" width="{bw:.1f}" height="{plot_h}"/>'
-                    f'<rect class="bar" x="{x + 1:.1f}" y="{top + plot_h - bh:.1f}" width="{bw - 2:.1f}" '
-                    f'height="{bh:.1f}" rx="1"/></g>')
+    for hour in range(24):
+        x, y = left + hour * bw, top + plot_h
+        for pid, counts in activity.items():
+            bh = plot_h * counts[hour] / peak
+            if not bh:
+                continue
+            y -= bh
+            bars.append(f'<rect class="bar" x="{x + 1:.1f}" y="{y:.1f}" width="{bw - 2:.1f}" height="{bh:.1f}" '
+                        f'fill="{colours.get(pid, OTHER)}"><title>{escape(pid)} · {hour:02d}:00–{hour:02d}:59 · '
+                        f'{counts[hour]:,} prompts</title></rect>')
     ticks = "".join(f'<text x="{left + hour * bw:.1f}" y="{h - 6}" text-anchor="middle">{hour:02d}:00</text>'
                     for hour in (0, 6, 12, 18))
     axis = (f'<line x1="{left}" x2="{w}" y1="{top + plot_h}" y2="{top + plot_h}"/>'
             f'<text x="{left - 4}" y="{top + 8}" text-anchor="end">{peak:,}</text>'
             f'<text x="{left - 4}" y="{top + plot_h}" text-anchor="end">0</text>')
-    return (f'<figure class="hours"><div class="label">Prompts by hour of day (local time, '
-            f'{sum(counts):,} total)</div><svg viewBox="0 0 {w} {h}" role="img" '
-            f'aria-label="Histogram of prompts by hour of day">{axis}{"".join(bars)}{ticks}</svg></figure>')
+    legend = "".join(f'<span><i style="background:{colours.get(pid, OTHER)}"></i>{escape(pid)} '
+                     f'({sum(c):,})</span>' for pid, c in activity.items())
+    total = sum(totals)
+    return (f'<figure class="hours"><div class="label">Prompts by hour of day (local time, {total:,} total)</div>'
+            f'<svg viewBox="0 0 {w} {h}" role="img" aria-label="Histogram of prompts by hour of day, '
+            f'stacked by participant">{axis}{"".join(bars)}{ticks}</svg>'
+            f'<div class="hours-legend">{legend}</div></figure>')
 
 
-def _workstyle(p, colours, hours=None):
-    if not hours and not any(p.get(k) for k in ("day_to_day", "rituals", "handoff", "task_mix")):
+def _cohort(synthesis):
+    """Cohort-level summary: text, doing well / could improve square and pooled
+    task mix."""
+    participants = synthesis["participants"]
+    mix = cohort_mix(participants, synthesis.get("task_categories"))
+    pie = _pie(mix, _palette(m["category"] for m in mix)) if mix else ""
+    summary = f'<p>{escape(synthesis["cohort_summary"])}</p>' if synthesis.get("cohort_summary") else ""
+    grid = f'<div class="cohort-grid">{_grid4(synthesis["cohort_grid"])}</div>' if synthesis.get("cohort_grid") else ""
+    return (f'<h2>Cohort</h2>{summary}{grid}'
+            f'<div class="cohort"><div>{pie}</div></div>')
+
+
+def _activity(participants, activity):
+    """Prompts by hour of day, stacked by participant, as its own section."""
+    hours = _hours({p["id"]: activity[p["id"]] for p in participants if p["id"] in activity},
+                   _palette(p["id"] for p in participants))
+    return f'<h2>Activity</h2>{hours}' if hours else ""
+
+
+def _workstyle(p):
+    if not any(p.get(k) for k in ("day_to_day", "rituals", "handoff")):
         return ""
     text = ""
     if d := p.get("day_to_day"):
-        text += (f'<div class="label">Day to day and typical session {_support(d)}</div>'
-                 f'<p>{escape(d["text"])}</p>{_evidence(d)}')
+        text += f'<div class="label">Day to day and typical session</div><p>{escape(_text(d))}</p>'
     if rituals := p.get("rituals"):
-        items = "".join(f'<li>{escape(r["text"])} {_support(r)}{_evidence(r)}</li>' for r in rituals)
+        items = "".join(f'<li>{escape(_text(r))}</li>' for r in rituals)
         text += f'<div class="label">Recurring workflows and rituals</div><ul class="rituals">{items}</ul>'
     if h := p.get("handoff"):
         text += f'<div class="label">Handoff</div><p class="handoff">{escape(h)}</p>'
-    charts = _pie(p.get("task_mix", []), colours) + _hours(hours)
-    return f'<div class="workstyle"><div>{text}</div><div>{charts}</div></div>'
+    return f'<div class="workstyle">{text}</div>'
 
 
-def _participant(p, colours, hours=None):
-    cells = "".join([
-        _cell("User", "doing well", p["user_strength"]),
-        _cell("User", "could improve", p["user_improvement"]),
-        _cell("Agents", "doing well", p["agent_strength"]),
-        _cell("Agents", "could improve", p["agent_improvement"]),
-    ])
+def _participant(p):
     archetype = f'<span class="label">{escape(p["archetype"])}</span>' if p.get("archetype") else ""
-    u = p["unique"]
-    return (f'<section class="participant"><div class="participant-head"><h3>{escape(p["id"])}</h3>{archetype}</div>'
-            f'<div class="grid4">{cells}</div>'
-            f'<div class="unique"><div class="label"><span class="who" style="color:var(--accent)">Unique</span></div>'
-            f'<p>{escape(u["text"])}</p>{_evidence(u)}</div>{_workstyle(p, colours, hours)}'
-            f'{_vibe_list(p)}</section>')
+    return (f'<details class="participant"><summary><span class="participant-head"><h3>{escape(p["id"])}</h3>'
+            f'{archetype}</span><div class="unique"><div class="label">Unique</div>'
+            f'{escape(_text(p["unique"]))}</div></summary>'
+            f'{_grid4(p)}{_workstyle(p)}{_vibe_list(p)}</details>')
 
 
 def count_runs(qc_path=None, meta_path=None):
-    """Return (n_agents, Counter of models) from parse_reports.py output."""
-    n_agents = 0
+    """Return (Counter of agent reports per participant, Counter of models) from
+    parse_reports.py output."""
+    agents = Counter()
     if qc_path:
         with open(qc_path) as f:
-            n_agents = sum(1 for _ in csv.DictReader(f))
+            agents.update(row["participant"] for row in csv.DictReader(f))
     models = Counter()
     if meta_path:
         with open(meta_path) as f:
             for row in csv.DictReader(f):
                 if row.get("Field", "").lower().startswith("agent / model") and row.get("Value"):
                     models[row["Value"]] += 1
-    return n_agents, models
+    return agents, models
 
 
 def load_activity(path):
@@ -282,23 +357,17 @@ def load_activity(path):
     return activity
 
 
-def render(synthesis, n_agents, models, activity=None):
+def render(synthesis, agents, models, activity=None):
     participants = synthesis["participants"]
-    colours = task_colours(participants)
+    activity = activity or {}
     n_users = len(participants)
-    model_text = ", ".join(f"{m} ×{n}" for m, n in models.most_common()) or "n/a"
+    n_agents = sum(agents.values())
     stats = "".join([
         f'<div class="stat"><div class="label">Users</div><div class="num">{n_users}</div></div>',
         f'<div class="stat"><div class="label">Agent reports</div><div class="num">{n_agents}</div></div>',
-        f'<div class="stat"><div class="label">Agents per user</div>'
-        f'<div class="num">{n_agents / n_users:.0f}</div></div>' if n_users else "",
-        f'<div class="stat"><div class="label">Models</div><div class="num small">{escape(model_text)}</div></div>',
-        f'<div class="stat"><div class="label">Compiled</div>'
-        f'<div class="num small">{escape(synthesis.get("date", ""))}</div></div>',
+        f'<div class="stat stat-models">{_models(models)}</div>' if models else "",
     ])
-    notes = "".join(f"<p>{escape(n)}</p>" for n in synthesis.get("notes", []))
-    if prov := synthesis.get("provenance"):
-        notes += "<p>Synthesis: " + escape(", ".join(f"{k} {v}" for k, v in prov.items() if v is not None)) + "</p>"
+    compiled = f'<footer class="compiled">Compiled {escape(synthesis["date"])}</footer>' if synthesis.get("date") else ""
     title = escape(synthesis.get("title", "Working with Claude Code"))
     return f"""<!doctype html>
 <html lang="en">
@@ -320,6 +389,8 @@ def render(synthesis, n_agents, models, activity=None):
 </header>
 <div class="stats">{stats}</div>
 
+{_cohort(synthesis)}
+
 {_vibe_section(participants, synthesis.get("vibe_summary", ""))}
 
 <h2>Top 3 common interaction patterns</h2>
@@ -329,9 +400,12 @@ def render(synthesis, n_agents, models, activity=None):
 {_ranked(synthesis["recovery_strategies"])}
 
 <h2>Participants</h2>
-{"".join(_participant(p, colours, (activity or {}).get(p["id"])) for p in participants)}
+<p class="label">What sets each participant apart; click for the deep dive</p>
+{"".join(_participant(p) for p in participants)}
 
-<footer class="notes">{notes}</footer>
+{_activity(participants, activity)}
+
+{compiled}
 </main>
 </body>
 </html>
@@ -348,7 +422,7 @@ def main():
     args = parser.parse_args()
 
     synthesis = json.loads(Path(args.synthesis).read_text())
-    n_agents, models = count_runs(args.qc, args.meta)
+    agents, models = count_runs(args.qc, args.meta)
 
     if args.qc:
         with open(args.qc) as f:
@@ -360,7 +434,7 @@ def main():
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(render(synthesis, n_agents, models, load_activity(args.activity)))
+    out.write_text(render(synthesis, agents, models, load_activity(args.activity)))
     print(f"wrote {out}")
 
 

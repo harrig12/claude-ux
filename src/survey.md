@@ -1,33 +1,71 @@
-# Claude Code user-interaction survey
+# Claude user-interaction survey
 
 You are being asked to profile the user you work with: who they are, what they
 expect of you, how they work with you, and where that collaboration goes well or
 badly. The goal is to find common user patterns across many users, so answer
 candidly and specifically. Don't flatter the user and don't play it safe.
 
+## Your environment
+
+You may be running in one of several environments. Work out which one first, and
+record it in the worksheet's **Environment** field:
+
+- **Claude Code** (CLI, VS Code / JetBrains extension, or desktop app): you can
+  read the user's files, including `~/.claude/`.
+- **Chat app with tools** (claude.ai, the desktop or mobile app): no file access,
+  but you may have memory, a past-chats search tool, project knowledge, or user
+  preferences and styles in your context.
+- **Plain chat**: only this conversation, plus whatever the user pasted in.
+
+The sources each section names (`~/.claude/...` paths) are the Claude Code ones.
+Use the closest equivalent you have:
+
+| Source | Claude Code | Chat app |
+|---|---|---|
+| Settings / instructions | `CLAUDE.md`, `settings*.json`, skills, hooks, MCP servers | user preferences, custom instructions, styles, project instructions, enabled tools and connectors |
+| Memory | `~/.claude/projects/*/memory/` | the app's memory (as shown in context or via a memory tool) |
+| History | `~/.claude/history.jsonl`, session transcripts | past-chats search, project chats, or just this conversation |
+| Repos and plans | git log, worktrees, `~/.claude/plans/` | none, unless the user shares them |
+
+**Missing sources are expected, not a failure.** Fill in every item anyway. If
+you have no evidence for one, say so in a short line naming what's missing (e.g.
+"No prompt history available: chat app without past-chats search"), then give
+your best guess tagged `[inferred]` with `low` confidence if a guess is useful.
+In a table with nothing to report, write a single row saying so. Never leave a
+`_<...>_` placeholder in place. Axes or questions that don't fit the environment
+(e.g. worktrees or cluster jobs for a chat user) can be answered "doesn't apply",
+with a reason.
+
 ## Ground rules
 
 - **Answer the sections in order.** Answer Section 1 *before* you read any files
-  beyond what is already in your context. It measures what you believe about the
-  user going in, and the later sections check that against evidence.
+  or call any memory or past-chat search tools: use only what is already in your
+  context. It measures what you believe about the user going in, and the later
+  sections check that against evidence.
 - **Tag every claim** with its source and confidence:
-  - Source: `[ctx]` already in context, `[settings]` config/CLAUDE.md,
-    `[memory]` memory files, `[history]` transcripts/history, `[inferred]` guess.
+  - Source: `[ctx]` already in context (including this conversation),
+    `[settings]` config/CLAUDE.md or chat preferences/instructions, `[memory]`
+    memory files or chat memory, `[history]` transcripts, prompt history or past
+    chats, `[inferred]` guess.
   - Confidence: `high` / `med` / `low`.
-- **Cite evidence** as a file path (and line or session id where possible). Paraphrase
+- **Cite evidence** as a file path (and line or session id where possible), or
+  in a chat app as the chat title/date or "this conversation". Paraphrase
   instead of quoting verbatim, and leave out credentials, personal details about
   third parties, unpublished results, and anything else sensitive.
 - **Bound your reads.** History and transcripts can be large. Sample them with a
-  stated sampling scheme (e.g. "the 20 most recent sessions across 5 projects")
-  instead of reading everything, and report what you sampled. See "How to look at
-  files" below.
+  stated sampling scheme (e.g. "the 20 most recent sessions across 5 projects",
+  or "8 past chats found by searching for corrections") instead of reading
+  everything, and report what you sampled. With no history at all, write "none
+  available" as the sampling scheme. In Claude Code, see "How to look at files"
+  below.
 - **Skip survey-design history.** Don't read transcripts or memory for the
   `claude-ux` project (`~/.claude/projects/*claude-ux*`): they contain the
   discussion that designed this survey and would bias your answers. The same goes
   for `claude-ux` entries in `~/.claude/history.jsonl`, which is shared across all
   projects: filter it by its `project` field. Also skip
   `~/.claude/projects/-tmp-*` (other survey agents' scratch sessions) and other
-  agents' reports under `results/agent_*/`.
+  agents' reports under `results/agent_*/`. In a chat app, skip past chats about
+  designing or running this survey.
 - **End every section (1–4) with a closing block**, numbered as the last items of
   that section:
   - **Context used:** list everything you pulled into context to answer the section:
@@ -44,17 +82,23 @@ candidly and specifically. Don't flatter the user and don't play it safe.
     user's field or role, or your general sense of "users like this", rather than on
     something you actually read.
 - **Don't change anything.** This survey is read-only: no edits to settings, memory, or
-  CLAUDE.md files.
+  CLAUDE.md files, and in a chat app don't add to or edit memory.
 - **Use the worksheet.** If you were given a copy of `src/report.md` to fill in,
-  fill in that copy. Otherwise copy `src/report.md` to `results/agent_<n>/report.md`
-  and fill in the copy. Keep its headings and numbering, and don't edit the template
-  itself. The closing blocks are numbered 1.7–1.8, 2.8–2.9, 3.7–3.8 and 4.8–4.9.
+  fill in that copy. If the worksheet was pasted into the chat, reply with the
+  whole filled-in worksheet as plain markdown, starting at its `# ...: report`
+  heading, with no preamble and not inside a code block, so the user can save
+  your reply as `report.md` unchanged. If it's too long for one reply, stop at
+  the end of a section and continue from the next `## Section` heading when the
+  user says "continue". Otherwise copy `src/report.md` to
+  `results/agent_<n>/report.md` and fill in the copy. Keep its headings and
+  numbering, and don't edit the template itself. The closing blocks are numbered
+  1.7–1.8, 2.8–2.9, 3.7–3.8 and 4.8–4.9.
 
 ---
 
-## How to look at files
+## How to look at files (Claude Code)
 
-Commands outside a short read-only allowlist go to a safety check, which often
+Skip this part if you have no file access. Commands outside a short read-only allowlist go to a safety check, which often
 refuses them, and every refused call wastes a turn. Work like this:
 
 - **Prefer the Read, Grep and Glob tools** for files. Use Read's offset/limit to
@@ -78,6 +122,10 @@ with `display` (the prompt text), `project`, `timestamp` and `sessionId`:
 jq -r 'select(.project | test("claude-ux|^/tmp") | not) | [.project, .display] | @tsv' ~/.claude/history.jsonl | tail -200
 jq -r 'select(.project | test("claude-ux|^/tmp") | not) | .project' ~/.claude/history.jsonl | sort | uniq -c | sort -rn
 ```
+
+Some users (e.g. VS Code extension only) have no `history.jsonl`. If it's missing,
+use the session transcripts below for prompt history instead, and note that in
+the worksheet's sampling scheme.
 
 **Session transcripts** are `~/.claude/projects/<project-dir>/<sessionId>.jsonl`,
 one JSON object per event. You may read them. Single lines can be over 100 KB
@@ -135,7 +183,9 @@ sed -n '2830,2850p' <file> | jq -r 'select(.type=="user" or .type=="assistant") 
 *Sources: `~/.claude/CLAUDE.md`, project-level `CLAUDE.md` files,
 `~/.claude/settings.json`, `~/.claude/settings.local.json`, project
 `.claude/settings*.json`, `~/.claude/skills/`, configured MCP servers / plugins,
-hooks, and permission allow/deny lists.*
+hooks, and permission allow/deny lists. In a chat app: user preferences, custom
+instructions, styles, project instructions, and the tools, connectors and skills
+enabled for you. For 2.1, list those (or "none") if you read no files.*
 
 2.1 List every file you read for this section.
 
@@ -165,9 +215,10 @@ hooks, and permission allow/deny lists.*
 
 *Sources: `~/.claude/history.jsonl` (prompt history), session transcripts under
 `~/.claude/projects/*/`, `~/.claude/plans/`, project memory files, and the
-repos themselves (git log, branch/worktree usage).*
+repos themselves (git log, branch/worktree usage). In a chat app: past chats
+(search them if you can), memory, and this conversation.*
 
-3.1 Describe in a short paragraph how this user works with Claude Code day to day.
+3.1 Describe in a short paragraph how this user works with Claude day to day.
 
 3.2 **Classify the user on each axis below.** Pick one position, give a one-line
     justification, and cite evidence. If an axis doesn't fit, say so.
@@ -209,10 +260,11 @@ repos themselves (git log, branch/worktree usage).*
 *Sources: memory files (`~/.claude/projects/*/memory/`, especially `feedback_*`),
 session transcripts (look for corrections, interruptions, rejected tool calls,
 "no"/"stop"/"actually"/"I said", repeated requests, reverted changes), plans,
-and git history (reverts, fix-ups).*
+and git history (reverts, fix-ups). In a chat app: past chats and memory,
+looking for the same signs of correction.*
 
-*Memory files were written by agents and record only what they chose to keep.
-Check them against the user's own words in transcripts or prompt history before
+*Memory was written by agents and records only what they chose to keep.
+Check it against the user's own words in transcripts, prompt history or past chats before
 calling something the user's main pain point.*
 
 4.1 List the **recurring pain points** you found. For each one, give:

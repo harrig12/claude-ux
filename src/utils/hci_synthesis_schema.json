@@ -6,6 +6,9 @@
     "title",
     "dek",
     "date",
+    "cohort_summary",
+    "cohort_grid",
+    "task_categories",
     "participants",
     "common_interactions",
     "recovery_strategies",
@@ -84,6 +87,44 @@
       "type": "string",
       "description": "YYYY-MM-DD"
     },
+    "cohort_summary": {
+      "type": "string",
+      "description": "Two to four sentences on how the cohort as a whole works with Claude Code day to day."
+    },
+    "cohort_grid": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "user_strength",
+        "user_improvement",
+        "agent_strength",
+        "agent_improvement"
+      ],
+      "description": "Cohort-level doing well / could improve square: one sentence each, true of most participants.",
+      "properties": {
+        "user_strength": {
+          "type": "string"
+        },
+        "user_improvement": {
+          "type": "string"
+        },
+        "agent_strength": {
+          "type": "string"
+        },
+        "agent_improvement": {
+          "type": "string"
+        }
+      }
+    },
+    "task_categories": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 7,
+      "items": {
+        "type": "string"
+      },
+      "description": "Shared task-type categories (item 3.3) used by every participant's task_mix, at most 6 plus 'Other' last; each at most 4 words."
+    },
     "participants": {
       "type": "array",
       "minItems": 1,
@@ -132,7 +173,7 @@
             "type": "array",
             "minItems": 1,
             "maxItems": 7,
-            "description": "Task-type mix (item 3.3) merged across this participant's agents into shared categories, largest first; shares sum to 100.",
+            "description": "Task-type mix (item 3.3) merged across this participant's agents, using only names from task_categories; largest first; shares sum to 100.",
             "items": {
               "type": "object",
               "additionalProperties": false,
@@ -143,7 +184,7 @@
               "properties": {
                 "category": {
                   "type": "string",
-                  "description": "Short task-type name, at most 4 words; use 'Other' for the remainder."
+                  "description": "Exactly one of the names in task_categories."
                 },
                 "share": {
                   "type": "number",

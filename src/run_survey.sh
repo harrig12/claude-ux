@@ -22,6 +22,21 @@ IFS=, read -r -a MODELS <<< "${2:-claude-opus-5-5}"
 TARGET_HOME=$(realpath "${3:-$HOME}")
 TARGET_USER=$(stat -c %U "$TARGET_HOME")
 
+# Use the claude CLI on PATH; VS Code-only users don't have one, so fall back to
+# the binary bundled with the newest installed Claude Code extension. CLAUDE_BIN
+# overrides both.
+CLAUDE=${CLAUDE_BIN:-$(command -v claude || true)}
+if [[ -z "$CLAUDE" ]]; then
+  CLAUDE=$(find "$HOME"/.vscode{,-server,-insiders}/extensions "$HOME"/.cursor{,-server}/extensions \
+             -maxdepth 4 -path '*anthropic.claude-code-*' -name claude -type f -perm -u+x \
+             2>/dev/null | sort -V | tail -n 1 || true)
+fi
+if [[ -z "$CLAUDE" ]]; then
+  echo "no claude CLI found on PATH or in a VS Code extension; set CLAUDE_BIN=/path/to/claude" >&2
+  exit 1
+fi
+echo "using $CLAUDE"
+
 REPO=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 SURVEY="$REPO/src/survey.md"
 TEMPLATE="$REPO/src/report.md"
@@ -65,7 +80,7 @@ for i in $(seq 1 "$N"); do
 
   (
     cd "$PRIV"
-    claude -p \
+    "$CLAUDE" -p \
       --model "$MODEL" \
       --no-session-persistence \
       --strict-mcp-config \
@@ -118,12 +133,15 @@ done
 
 # Prompts per hour of day, for the report's activity histogram. Only counts are
 # written, never prompt text. This repo's sessions and temp-dir runs are excluded.
+# VS Code extension-only users may have no history.jsonl, so fall back to the
+# session transcripts (which only go back ~30 days by default).
 HISTORY="$TARGET_HOME/.claude/history.jsonl"
+[[ -r "$HISTORY" ]] || HISTORY="$TARGET_HOME/.claude/projects"
 if [[ -r "$HISTORY" ]]; then
   python3 "$REPO/src/utils/activity_hours.py" "$HISTORY" \
     --exclude "$REPO" --exclude "${TMPDIR:-/tmp}" -o "$RESULTS/activity_hours.csv"
 else
-  echo "no readable $HISTORY; skipping activity hours" >&2
+  echo "no readable history.jsonl or projects/ under $TARGET_HOME/.claude; skipping activity hours" >&2
 fi
 
 echo "Reports in $RESULTS/agent_1 .. agent_$N"

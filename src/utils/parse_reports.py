@@ -183,7 +183,7 @@ def build_tables(roots, template=DEFAULT_TEMPLATE):
                     out[name].append({**key, "item": num, "section": item["section"], **row})
                     n_rows += 1
 
-        out["qc"].append({**key, "path": str(path), "placeholders_left": report["placeholders"],
+        out["qc"].append({**key, "path": str(path.resolve()), "placeholders_left": report["placeholders"],
                           "items_with_text": sum(bool(i["text"]) for i in report["items"].values()),
                           "table_rows": n_rows})
 

@@ -18,6 +18,15 @@ reports. Your output is structured JSON that a script renders into the HCI repor
 The relevant worksheet items are 3.1–3.6 (workstyle), 4.1–4.7 (pain points,
 what works, recovery), 5.2 (surprises) and 6.1–6.2 (relationship).
 
+Reports come from different environments, recorded in each report's
+`Environment` field (`meta.csv`): Claude Code with full file access, or a chat
+app with only memory, past chats or the current conversation to go on. Chat
+reports may say a source wasn't available, or have short, `[inferred]`-heavy
+answers. Don't read missing evidence as missing behaviour (e.g. no memory files
+doesn't mean the user never codifies rules). Lean on the better-evidenced
+reports for cohort-level claims, and say in `notes` when a participant's
+profile rests on thin evidence.
+
 ## What to produce
 
 **For each participant:**
@@ -33,11 +42,11 @@ what works, recovery), 5.2 (surprises) and 6.1–6.2 (relationship).
 
 **Workstyle (per participant):**
 
-- `task_mix`: merge the participant's task-type tables (item 3.3,
-  `task_mix.csv`) into at most 7 shared categories, folding small or
-  one-agent categories into `Other`. Set `share` to the mean percentage across
-  their agents (an agent that has no row for a category counts as 0), rescaled
-  so the shares sum to 100. List largest first, with `Other` last.
+- `task_mix`: map the participant's task-type tables (item 3.3,
+  `task_mix.csv`) onto the shared `task_categories` (see below), folding
+  anything that doesn't fit into `Other`. Set `share` to the mean percentage
+  across their agents (an agent that has no row for a category counts as 0),
+  rescaled so the shares sum to 100. List largest first, with `Other` last.
 - `day_to_day`: two to four sentences summarising what a typical day and a
   typical session look like (items 3.1 and 3.4).
 - `rituals`: up to 5 recurring workflows or rituals (item 3.5).
@@ -65,6 +74,17 @@ rationale per report, and summarise the pattern across all reports in
 `vibe_summary`.
 
 **Across participants:**
+
+- `cohort_summary`: two to four sentences on how the cohort as a whole works
+  with Claude Code day to day: what they share and where they differ most.
+- `cohort_grid`: the cohort-level version of the per-participant square, one
+  sentence each: `user_strength`, `user_improvement`, `agent_strength` and
+  `agent_improvement`. Pick what holds for most participants; phrase
+  improvements as concrete changes.
+- `task_categories`: one list of at most 6 task-type categories plus `Other`
+  (last), chosen to fit every participant's item 3.3 tables, so the same work
+  gets the same name for everyone. Each name is at most 4 words. Every
+  participant's `task_mix` uses only these names.
 
 - `common_interactions`: the 3 interaction patterns shared by the most
   participants (e.g. "terse directives in auto mode", "plan doc before code").

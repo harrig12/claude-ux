@@ -12,6 +12,8 @@ common pain points.
 
 If you'd like to participate, clone this repo, run bash `src/run_survey.sh` and send me your results folder, I’ll do some kind of meta-analysis
 
+if you're not a claude code user, you can paste src/survey.md and src/report.md into your favourite chatbot and ask it to fill out the report according to the survey instructions
+
 # What it does
 
 Runs an agent to look through your interactions with claude, memories, history etc and summarizes what claude thinks about you, comments on your workstyle, etc. 
@@ -59,10 +61,9 @@ Taking part is voluntary.
 
    This runs three agents in parallel, each independently filling in its own
    copy of the worksheet. It takes a while; leave it running in its own terminal.
-   When it's done, the reports are in `results/agent_1/`, `results/agent_2/` and
-   `results/agent_3/`.
+   When it's done, the reports are in `results/agent_1/`
 
-2. **Review your reports.** Read the three `report.md` files before sending
-   them. Replace anything you'd rather not share with `[redacted]` (Sections 4
-   and 6 are the most personal).
+
+* you can run multiple times; `bash run_survey.sh 3` for example launches 3 independent agents who don't look at each others ansers
+* see report under `results/hci_analysis`
 
