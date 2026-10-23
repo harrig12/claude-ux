@@ -56,7 +56,7 @@ ol.ranked p { margin: 0 0 8px; }
 .participant { border-top: 1px solid var(--fg); padding-top: 8px; margin-top: 16px; font-size: 13px; }
 .participant > summary { cursor: pointer; list-style-position: outside; margin-left: 16px; }
 .participant[open] > summary { margin-bottom: 8px; }
-.cohort { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 16px 32px; align-items: start; margin-top: 16px; }
+.cohort-pies { margin-top: 16px; }
 .hours-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font: 12px/1.5 var(--label); color: var(--muted); margin-top: 6px; }
 .hours-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
 .participant-head { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
@@ -98,7 +98,10 @@ figure.models .models { margin-top: 6px; }
 .workstyle ul.rituals li { margin-bottom: 6px; }
 .handoff { border-left: 3px solid var(--primary); padding-left: 12px; }
 figure.pie { margin: 0; }
-figure.pie svg { display: block; width: 160px; height: 160px; margin: 8px 0; }
+figure.pie svg { display: block; width: 84px; height: 84px; margin: 4px 0 0; }
+figure.pie.main svg { width: 200px; height: 200px; margin: 6px 0 10px; }
+.pie-layout { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px 48px; margin: 8px 0 12px; }
+.pies { display: grid; grid-template-columns: repeat(3, max-content); gap: 14px 22px; }
 figure.pie path, figure.pie circle { stroke: var(--bg); stroke-width: 2; }
 figure.hours { margin: 0; }
 figure.hours svg { display: block; width: 100%; max-width: 560px; height: auto; margin-top: 6px; }
@@ -107,12 +110,12 @@ figure.hours rect.hit { fill: transparent; }
 figure.hours rect.bar:hover { opacity: .75; }
 figure.hours text { font: 10px var(--label); fill: var(--muted); }
 figure.hours line { stroke: var(--rule); }
-.pie-legend { list-style: none; padding: 0; margin: 0; font: 12px/1.5 var(--label); }
+.pie-legend { list-style: none; padding: 0; margin: 0 0 4px; max-width: 360px; font: 12px/1.5 var(--label); }
 .pie-legend li { display: flex; gap: 8px; align-items: baseline; }
 .pie-legend i { flex: none; width: 10px; height: 10px; border-radius: 2px; }
 .pie-legend .pct { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
 .chip { display: inline-block; font: 600 10px/1.6 var(--label); letter-spacing: .08em; text-transform: uppercase; padding: 0 6px; border: 1px solid var(--fg); margin-right: 8px; }
-@media (max-width: 640px) { .grid4, .cohort { grid-template-columns: 1fr; } .stat { border-right: 0; border-bottom: 1px solid var(--rule); } .stat-models { grid-column: auto; } }
+@media (max-width: 640px) { .grid4 { grid-template-columns: 1fr; } .stat { border-right: 0; border-bottom: 1px solid var(--rule); } .stat-models { grid-column: auto; } }
 """
 
 FONTS = ("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600"
@@ -227,13 +230,13 @@ def cohort_mix(participants, categories=None):
     return [{"category": c, "share": mean[c] * scale} for c in categories if mean[c] > 0]
 
 
-def _pie(task_mix, colours):
-    """Task-type mix as an SVG pie with a labelled legend."""
+def _pie(task_mix, colours, label, main=False):
+    """One task-type mix as a small SVG pie; shares are in the slice tooltips."""
     total = sum(t["share"] for t in task_mix)
     if not total:
         return ""
     cx = cy = r = 80
-    slices, legend, angle = [], [], -math.pi / 2
+    slices, angle = [], -math.pi / 2
     for t in task_mix:
         frac = t["share"] / total
         colour = colours.get(t["category"], OTHER)
@@ -248,11 +251,28 @@ def _pie(task_mix, colours):
             slices.append(f'<path d="M{cx},{cy} L{x0:.2f},{y0:.2f} A{r},{r} 0 {large} 1 {x1:.2f},{y1:.2f} Z" '
                           f'fill="{colour}">{tip}</path>')
             angle = end
-        legend.append(f'<li><i style="background:{colour}"></i><span>{escape(t["category"])}</span>'
-                      f'<span class="pct">{100 * frac:.0f}%</span></li>')
-    return (f'<figure class="pie"><div class="label">Task-type mix (mean across users)</div>'
-            f'<svg viewBox="0 0 160 160" role="img" aria-label="Task-type mix pie chart">{"".join(slices)}</svg>'
-            f'<ul class="pie-legend">{"".join(legend)}</ul></figure>')
+    return (f'<figure class="pie{" main" if main else ""}"><div class="label">{escape(label)}</div>'
+            f'<svg viewBox="0 0 160 160" role="img" aria-label="{escape(label)} task-type mix pie chart">'
+            f'{"".join(slices)}</svg></figure>')
+
+
+def _pies(participants, categories=None):
+    """Task-type mix: a large cohort-mean pie with the shared legend, beside small
+    multiples per participant. Colours are keyed to category so they match."""
+    mix = cohort_mix(participants, categories)
+    if not mix:
+        return ""
+    order = [m["category"] for m in mix]
+    colours = _palette(order)
+    small = "".join(_pie(cohort_mix([p], order), colours, p["id"]) for p in participants)
+    legend = "".join(f'<li><i style="background:{colours.get(m["category"], OTHER)}"></i>'
+                     f'<span>{escape(m["category"])}</span><span class="pct">{m["share"]:.0f}%</span></li>'
+                     for m in mix)
+    return (f'<div class="pie-layout">'
+            f'<div>{_pie(mix, colours, "Task-type mix (mean across users)", main=True)}'
+            f'<ul class="pie-legend">{legend}</ul></div>'
+            f'<div><div class="label">By participant (hover a slice for its share)</div>'
+            f'<div class="pies">{small}</div></div></div>')
 
 
 def _hours(activity, colours):
@@ -294,12 +314,11 @@ def _cohort(synthesis):
     """Cohort-level summary: text, doing well / could improve square and pooled
     task mix."""
     participants = synthesis["participants"]
-    mix = cohort_mix(participants, synthesis.get("task_categories"))
-    pie = _pie(mix, _palette(m["category"] for m in mix)) if mix else ""
+    pie = _pies(participants, synthesis.get("task_categories"))
     summary = f'<p>{escape(synthesis["cohort_summary"])}</p>' if synthesis.get("cohort_summary") else ""
     grid = f'<div class="cohort-grid">{_grid4(synthesis["cohort_grid"])}</div>' if synthesis.get("cohort_grid") else ""
     return (f'<h2>Cohort</h2>{summary}{grid}'
-            f'<div class="cohort"><div>{pie}</div></div>')
+            f'<div class="cohort-pies">{pie}</div>')
 
 
 def _activity(participants, activity):
